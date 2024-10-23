@@ -110,7 +110,7 @@ class RTSTimeDelta(object):
         if UNIT_LENGTHS[unit]:
             positive_unit = int(abs(self.timediff) // UNIT_BEATS[unit] % UNIT_LENGTHS[unit])
         else:
-            positive_unit = abs(self.timediff) // UNIT_BEATS[unit]
+            positive_unit = int(abs(self.timediff) // UNIT_BEATS[unit])
         if self.timediff < 0:
             return -positive_unit
         return positive_unit
@@ -224,7 +224,7 @@ class RTSTimeComponent(object):
         if UNIT_LENGTHS[unit]:
             positive_unit = int(abs(timestamp) // UNIT_BEATS[unit] % UNIT_LENGTHS[unit])
         else:
-            positive_unit = abs(timestamp) // UNIT_BEATS[unit]
+            positive_unit = int(abs(timestamp) // UNIT_BEATS[unit])
         if self.timestamp < 0:
             return UNIT_LENGTHS[unit] - positive_unit - self.UNIT_NEGATIVE_OFFSET[unit]
         return positive_unit
