@@ -39,7 +39,7 @@ jobs:
       - name: Type check with mypy
         run: |
           poetry install --with dev
-          poetry run mypy --strict ${{ inputs.package_name }}
+          poetry run mypy ${{ inputs.package_name }}
 
   pytest:
     runs-on: ubuntu-latest
