@@ -87,7 +87,7 @@ class RTSTimeDelta(object):
         minutes: float = 0,
         seconds: float = 0,
     ):
-        timediff = 0
+        timediff: float = 0
         # rst date
         timediff += quadrennials * UNIT_BEATS[TimeUnits.QUADRENNIAL]
         timediff += years * UNIT_BEATS[TimeUnits.YEAR]
@@ -104,8 +104,7 @@ class RTSTimeDelta(object):
         timediff += seconds * UNIT_BEATS[TimeUnits.SECONDS]
         timediff += minutes * UNIT_BEATS[TimeUnits.MINUTE]
         timediff += hours * UNIT_BEATS[TimeUnits.HOUR]
-        timediff = int(timediff)
-        return cls(timediff)
+        return cls(int(timediff))
 
     def _timestamp_to_unit(self, unit: TimeUnits):
         if UNIT_LENGTHS[unit]:
@@ -197,7 +196,7 @@ class RTSTimeComponent(object):
         minutes: int = 0,
         seconds: int = 0,
     ):
-        timestamp = 0
+        timestamp: float = 0
         # rst date
         timestamp += quadrennials * UNIT_BEATS[TimeUnits.QUADRENNIAL]
         timestamp += years * UNIT_BEATS[TimeUnits.YEAR]
