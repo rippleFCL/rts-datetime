@@ -10,7 +10,7 @@ jobs:
   test:
     uses: ./.github/workflows/test-reusable.yml
     with:
-      package_name: dvla_vehicle_enquiry_service
+      package_name: rtsdatetime
       tests_path: tests
     secrets: inherit
 
