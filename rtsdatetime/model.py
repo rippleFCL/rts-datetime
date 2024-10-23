@@ -75,7 +75,7 @@ class RTSTimeDelta(object):
     @classmethod
     def from_units(
         cls,
-        quadrienials: float = 0,
+        quadrennials: float = 0,
         years: float = 0,
         days: float = 0,
         octas: float = 0,
@@ -89,7 +89,7 @@ class RTSTimeDelta(object):
     ):
         timediff = 0
         # rst date
-        timediff += quadrienials * UNIT_BEATS[TimeUnits.QUADRENNIAL]
+        timediff += quadrennials * UNIT_BEATS[TimeUnits.QUADRENNIAL]
         timediff += years * UNIT_BEATS[TimeUnits.YEAR]
         timediff += days * UNIT_BEATS[TimeUnits.DAY]
 
@@ -185,7 +185,7 @@ class RTSTimeComponent(object):
     def from_units(
         cls,
         name: str,
-        quadrienials: int = 0,
+        quadrennials: int = 0,
         years: int = 0,
         days: int = 0,
         octas: int = 0,
@@ -199,7 +199,7 @@ class RTSTimeComponent(object):
     ):
         timestamp = 0
         # rst date
-        timestamp += quadrienials * UNIT_BEATS[TimeUnits.QUADRENNIAL]
+        timestamp += quadrennials * UNIT_BEATS[TimeUnits.QUADRENNIAL]
         timestamp += years * UNIT_BEATS[TimeUnits.YEAR]
         timestamp += days * UNIT_BEATS[TimeUnits.DAY]
 
