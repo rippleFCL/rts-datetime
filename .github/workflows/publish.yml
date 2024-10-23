@@ -25,7 +25,8 @@ jobs:
       - name: Parse tags
         id: parse_tags
         run: |
-          echo "tag_count=$(git fetch -a | wc -l)" >> $GITHUB_OUTPUT
+          git fetch -a
+          echo "tag_count=$(git tags | wc -l)" >> $GITHUB_OUTPUT
 
       - name: Update CHANGELOG
         id: changelog
