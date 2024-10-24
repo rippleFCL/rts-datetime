@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "rts-datetime"
-version = "0.1.0"
+version = "1.1.0"
 description = "datetime library for ripple time system objects"
 authors = ["ripple <github@ripple.contact>"]
 license = "MIT"

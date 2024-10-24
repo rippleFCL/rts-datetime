@@ -244,20 +244,21 @@ class RTSTimeComponent(object):
 
     def format(self, format_str):
         fmt_values = {
-            f"[{self.name}.QU]": self.quadrennial,
-            f"[{self.name}.YE]": self.year,
-            f"[{self.name}.DA]": self.day,
-            f"[{self.name}.OC]": self.octa,
-            f"[{self.name}.HE]": self.hexa,
-            f"[{self.name}.TA]": self.tap,
-            f"[{self.name}.DE]": self.decitap,
-            f"[{self.name}.BE]": self.beat,
-            f"[{self.name}.SE]": self.seconds,
-            f"[{self.name}.MI]": self.minute,
-            f"[{self.name}.HO]": self.hour,
-            f"[{self.name}.RH]": self.rolling_hour,
-            f"[{self.name}.RO]": self.rolling_octa,
+            f"[{self.name}.QU]": str(self.quadrennial),
+            f"[{self.name}.YE]": str(self.year),
+            f"[{self.name}.DA]": str(self.day),
+            f"[{self.name}.OC]": str(self.octa),
+            f"[{self.name}.HE]": str(self.hexa),
+            f"[{self.name}.TA]": str(self.tap),
+            f"[{self.name}.DE]": str(self.decitap).rjust(2, "0"),
+            f"[{self.name}.BE]": str(self.beat).rjust(2, "0"),
+            f"[{self.name}.SE]": str(self.seconds).rjust(2, "0"),
+            f"[{self.name}.MI]": str(self.minute).rjust(2, "0"),
+            f"[{self.name}.HO]": str(self.hour).rjust(2, "0"),
+            f"[{self.name}.RH]": str(self.rolling_hour),
+            f"[{self.name}.RO]": str(self.rolling_octa),
         }
+
         for key, value in fmt_values.items():
             format_str = format_str.replace(key, str(value))
         return format_str
