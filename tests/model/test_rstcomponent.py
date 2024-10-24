@@ -364,10 +364,10 @@ def test_format():
     format_str = "[b.RO]:[b.OC]:[b.HE]:[b.TA]:[b.DE]:[b.BE]/[b.RH]:[b.HO]:[b.MI]:[b.SE] [b.DA]-[b.YE]-[b.QU]"
 
     new_tc = RTSTimeComponent(134566, "b")
-    assert new_tc.format(format_str) == "7:1:0:0:4:6/28:4:2:4 1-0-0"
+    assert new_tc.format(format_str) == "7:1:0:0:04:06/28:04:02:04 1-0-0"
 
     new_tc = RTSTimeComponent(1458777, "b")
-    assert new_tc.format(format_str) == "75:3:7:4:9:17/303:15:54:42 12-0-0"
+    assert new_tc.format(format_str) == "75:3:7:4:09:17/303:15:54:42 12-0-0"
 
     new_tc = RTSTimeComponent(1458777, "c")
     assert (
