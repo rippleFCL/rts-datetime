@@ -317,6 +317,10 @@ def test_repr():
             {"beats": 19, "octas": 4, "days": 13, "name": "test"},
             "RSTimeComponent.from_units(days=13, octas=4, beats=19)",
         ),
+        (
+            {"beats": 19, "octas": 4, "hexas":3, "decitaps": 1, "days": 13, "name": "test"},
+            "RSTimeComponent.from_units(days=13, octas=4, hexas=3, decitaps=1, beats=19)",
+        ),
     ]
     for args, expected in values:
         test_tc = RTSTimeComponent.from_units(**args)
