@@ -1,3 +1,7 @@
+import datetime
+import json
+import time
+from typing import Any, Callable, Literal, Protocol, Self, runtime_checkable, dataclass_transform
 from rtsdatetime.default_units import RSTUnits
 from .units import RTSTimeUnits
 
@@ -28,6 +32,147 @@ class RTSTimeDelta[T: RTSTimeUnits]:
         if type(other) is not RTSTimeDelta:
             raise TypeError(f"unsupported operand type(s) for +: 'RSTimeDelta' and '{type(other)}'")
         return RTSTimeDelta(self.timediff - other.timediff, self._time_units)
+
+
+@runtime_checkable
+class TimestampInterface(Protocol):
+    name: str
+
+    def __set_name__(self, owner: type["RTSDateTime"], name: str): ...
+
+    def __get__(self, obj: "RTSDateTime", objtype: type["RTSDateTime"] | None = None) -> float: ...
+
+
+class Timestamp(TimestampInterface):
+    def __init__(self):
+        pass
+
+    def __set_name__(self, owner: type["RTSDateTime"], name: str):
+        self.name = name
+
+    def __get__(self, obj: "RTSDateTime | None", objtype: Any = None) -> float:
+        if obj is None and issubclass(objtype, RTSDateTime):
+            return 0
+        if obj is None or not issubclass(objtype, RTSDateTime):
+            raise AttributeError("RTSTCTimestamp can only be accessed through RTSDateTime objects")
+        value = getattr(obj, f"_{self.name}", None)
+        if value is None:
+            return 0
+        if not isinstance(value, float):
+            raise ValueError(f"RTSTCTimestamp {self.name} must be of type float")
+        return value
+
+    def __set__(self, obj: "RTSDateTime", value: datetime.datetime | RTSTimeUnits):
+        if isinstance(value, datetime.datetime):
+            timestamp = value.timestamp()
+        elif isinstance(value, RTSTimeUnits):
+            if value.seconds_ratio is None:
+                raise AttributeError("RTSTimeUnits must have a seconds_ratio attribute")
+            timestamp = value.timestamp * value.seconds_ratio + value.epoch.timestamp()
+        else:
+            raise ValueError(f"RTSTCTimestamp {self.name} must be of type datetime.datetime or RTSTimeUnits")
+        setattr(obj, f"_{self.name}", timestamp)
+
+
+@dataclass_transform(field_specifiers=(Timestamp,))
+class RTSDateTime(object):
+    def __init_subclass__(cls) -> None:
+        def __init__(self: "RTSDateTime", **kwargs):
+            timestamps = self._timestamp_map.keys()
+            for key, value in kwargs.items():
+                if key not in timestamps:
+                    raise ValueError(f"Unknown timestamp '{key}'")
+                setattr(self, key, value)
+        cls.__init__ = __init__
+
+    @classmethod
+    def _component_map(cls):
+        units_map: dict[str, TimeComponent] = {}
+        vars = cls.__class__.__dict__.copy()
+        vars.update(cls.__dict__)
+        for key, value in vars.items():
+            if isinstance(value, TimeComponent):
+                units_map[key] = value
+        return units_map
+
+    @classmethod
+    def dump_json(cls):
+        return json.dumps({key: value.to_dict() for key, value in cls._component_map().items()})
+
+    @classmethod
+    def load_json(cls, json_string: str):
+        class DynRTSDateTime(cls):
+            pass
+        new_cls: type[Self] = DynRTSDateTime # type: ignore
+        data = json.loads(json_string)
+        timestamp_map: dict[str, TimestampInterface] = {}
+        for key, value in data.items():
+            new_component, timestamp_map = TimeComponent.construct_from_dict(value, timestamp_map)
+            setattr(new_cls, key, new_component)
+        for key, value in timestamp_map.items():
+            setattr(new_cls, key, value)
+            value.__set_name__(new_cls, key)
+        return new_cls
+
+    @property
+    def _timestamp_map(self):
+        timestamp_map: dict[str, TimestampInterface] = {}
+        vars = self.__class__.__dict__.copy()
+        vars.update(self.__dict__)
+        for key, value in vars.items():
+            if isinstance(value, TimestampInterface):
+                timestamp_map[key] = value
+        return timestamp_map
+
+    @property
+    def timestamp_map(self):
+        return {key: value.__get__(self, self.__class__) for key, value in self._timestamp_map.items()}
+
+    @property
+    def units_map(self):
+        units_map: dict[str, RSTUnits] = {}
+        vars = self.__class__.__dict__.copy()
+        vars.update(self.__dict__)
+        for key, value in vars.items():
+            if isinstance(value, TimeComponent):
+                units_map[key] = value.__get__(self, self.__class__)
+        return units_map
+
+    def __getitem__(self, key: str):
+        return self.units_map[key]
+
+
+class TimeComponent[T: RTSTimeUnits]:
+    def __init__(self, units: type[T], timestamp: TimestampInterface, init: Literal[False] = False):
+        self.init = init
+        self.timestamp = timestamp
+        self.units = units
+
+    def __get__(self, obj: RTSDateTime | None, objtype=None):
+        if objtype is None or not issubclass(objtype, RTSDateTime):
+            raise AttributeError("RTSTime component blah blah only can be used from rtsdatetime")
+        timestamp = self.timestamp.__get__(obj, objtype)
+        return self.units.from_utc_timestamp(timestamp)
+
+    def __set_name__(self, owner: type[RTSDateTime], name: str):
+        self.name = name
+
+    @classmethod
+    def construct_from_dict(
+        cls: "type[TimeComponent[RTSTimeUnits]]", data: dict[str, Any], timestamp_map: dict[str, TimestampInterface]
+    ):
+        timestamp = timestamp_map.get(data["timestamp"])
+        if not timestamp:
+            timestamp = Timestamp()
+            timestamp_map[data["timestamp"]] = timestamp
+        return cls(RTSTimeUnits.construct_from_dict(data["units"]), timestamp), timestamp_map
+
+    def to_dict(self):
+        return {"units": self.units.to_dict(), "timestamp": self.timestamp.name}
+
+
+def rtsdatetime[T](cls: type[T]) -> type[T]:
+    return cls
 
 
 #
@@ -160,61 +305,6 @@ class RTSTimeDelta[T: RTSTimeUnits]:
 #         comp_str = f"{quadrennials}{days}{years}{octas}{hexas}{taps}{decitaps}{beats}"[:-2]
 #         return f"RSTimeComponent.from_units({comp_str})"
 
-
-class RTSDateTime(object):
-    @property
-    def unit_map(self):
-        return self._gen_unit_map()
-
-    def _gen_unit_map(self):
-        unit_map: dict[str, RSTUnits] = {}
-        vars = self.__class__.__dict__.copy()
-        vars.update(self.__dict__)
-        for key, value in vars.items():
-            if isinstance(value, RTSTimeComponent):
-                unit_map[key] = value.get_unit(self)
-        return unit_map
-
-    def __getitem__(self, key: str):
-        return self.unit_map[key]
-
-
-class RTSTCTimestamp:
-    def __init__(self):
-        pass
-
-    def __set_name__(self, owner: RTSDateTime, name: str):
-        self.name = name
-
-    def __get__(self, obj: RTSDateTime, objtype=None):
-        if obj is None or not issubclass(objtype, RTSDateTime):
-            raise AttributeError("RTSTCTimestamp can only be accessed through RTSDateTime objects")
-        value = getattr(obj, f"_{self.name}", None)
-        if value is None:
-            raise ValueError(f"RTSTCTimestamp {self.name} is not set")
-        if not isinstance(value, float) and not isinstance(value, int):
-            raise ValueError(f"RTSTCTimestamp {self.name} must be of type float or int")
-        return value
-
-    def __set__(self, obj: RTSDateTime, value: float | int | RTSTimeUnits):
-        setattr(obj, f"_{self.name}", value)
-
-
-class RTSTimeComponent[T: RTSTimeUnits]:
-    def __init__(self, units: type[T], timestamp: RTSTCTimestamp, locked: bool = False):
-        self.timestamp = timestamp
-        self.units = units
-        self.locked = locked
-
-    def __get__(self, obj: RTSDateTime | None, objtype=None):
-        if objtype is None or not issubclass(objtype, RTSDateTime):
-            raise AttributeError("RTSTime component blah blah only can be used from rtsdatetime")
-        timestamp = self.timestamp.__get__(obj, objtype)
-        return self.units.from_utc_timestamp(timestamp)
-
-
-    def __set_name__(self, owner: RTSDateTime, name: str):
-        self.name = name
 
 # class RTSDateTime(object):
 #     def __init__(self, time_components: list[RTSTimeComponent], static_time_components: list[RTSTimeComponent]):

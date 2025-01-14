@@ -1,8 +1,8 @@
-from .model import RTSTimeComponent, RTSDateTime, RTSTimeDelta
+from .model import TimeComponent, RTSDateTime, RTSTimeDelta
 
 
 __all__ = [
     "RTSDateTime",
-    "RTSTimeComponent",
+    "TimeComponent",
     "RTSTimeDelta",
 ]
