@@ -1,3 +1,4 @@
+import base64
 import datetime
 import json
 import time
@@ -34,23 +35,14 @@ class RTSTimeDelta[T: RTSTimeUnits]:
         return RTSTimeDelta(self.timediff - other.timediff, self._time_units)
 
 
-@runtime_checkable
-class TimestampInterface(Protocol):
-    name: str
-
-    def __set_name__(self, owner: type["RTSDateTime"], name: str): ...
-
-    def __get__(self, obj: "RTSDateTime", objtype: type["RTSDateTime"] | None = None) -> float: ...
-
-
-class Timestamp(TimestampInterface):
+class Timestamp:
     def __init__(self):
         pass
 
     def __set_name__(self, owner: type["RTSDateTime"], name: str):
         self.name = name
 
-    def __get__(self, obj: "RTSDateTime | None", objtype: Any = None) -> float:
+    def __get__(self, obj: "RTSDateTime | None", objtype: type["RTSDateTime"] | None = None) -> float:
         if obj is None and issubclass(objtype, RTSDateTime):
             return 0
         if obj is None or not issubclass(objtype, RTSDateTime):
@@ -58,17 +50,19 @@ class Timestamp(TimestampInterface):
         value = getattr(obj, f"_{self.name}", None)
         if value is None:
             return 0
-        if not isinstance(value, float):
+        if not isinstance(value, float) and not isinstance(value, int):
             raise ValueError(f"RTSTCTimestamp {self.name} must be of type float")
         return value
 
-    def __set__(self, obj: "RTSDateTime", value: datetime.datetime | RTSTimeUnits):
+    def __set__(self, obj: "RTSDateTime", value: datetime.datetime | RTSTimeUnits | float):
         if isinstance(value, datetime.datetime):
             timestamp = value.timestamp()
         elif isinstance(value, RTSTimeUnits):
             if value.seconds_ratio is None:
                 raise AttributeError("RTSTimeUnits must have a seconds_ratio attribute")
             timestamp = value.timestamp * value.seconds_ratio + value.epoch.timestamp()
+        elif isinstance(value, float) or isinstance(value, int):
+            timestamp = value
         else:
             raise ValueError(f"RTSTCTimestamp {self.name} must be of type datetime.datetime or RTSTimeUnits")
         setattr(obj, f"_{self.name}", timestamp)
@@ -78,12 +72,39 @@ class Timestamp(TimestampInterface):
 class RTSDateTime(object):
     def __init_subclass__(cls) -> None:
         def __init__(self: "RTSDateTime", **kwargs):
-            timestamps = self._timestamp_map.keys()
+            timestamps = [key for key, value in self._timestamp_map.items() if type(value) is Timestamp]
             for key, value in kwargs.items():
                 if key not in timestamps:
                     raise ValueError(f"Unknown timestamp '{key}'")
                 setattr(self, key, value)
+
+        def __repr__(self: "RTSDateTime"):
+            vals: list[str] = []
+            for key, value in self._timestamp_map.items():
+                if type(value) is Timestamp:
+                    vals.append(f"{key}={getattr(self, key)}")
+            return f"{self.__class__.__name__}({', '.join(vals)})"
+
+        def __str__(self: "RTSDateTime"):
+            vals: list[str] = []
+            for key, value in self._component_map().items():
+                vals.append(f"{key}={getattr(self, key)}")
+            return f"{self.__class__.__name__}({', '.join(vals)})"
+
         cls.__init__ = __init__
+        cls.__repr__ = __repr__
+        cls.__str__ = __str__
+
+    @classmethod
+    def from_rts_timestamp(cls, rts_timestamp: str):
+        timestamp_strs = rts_timestamp.split(",")
+        kwargs = {}
+        for timestamp_str in timestamp_strs:
+            name, timestamp, *overflow = timestamp_str.split("=")
+            if overflow:
+                raise ValueError(f"Unknown rts timestamp '{rts_timestamp}'")
+            kwargs[name] = float(timestamp)
+        return cls(**kwargs)
 
     @classmethod
     def _component_map(cls):
@@ -103,11 +124,13 @@ class RTSDateTime(object):
     def load_json(cls, json_string: str):
         if cls is not RTSDateTime:
             raise AttributeError("load_json can only be called on RTSDateTime directly")
+
         class DynRTSDateTime(cls):
             pass
-        new_cls: type[Self] = DynRTSDateTime # type: ignore
+
+        new_cls: type[Self] = DynRTSDateTime  # type: ignore
         data = json.loads(json_string)
-        timestamp_map: dict[str, TimestampInterface] = {}
+        timestamp_map: dict[str, Timestamp] = {}
         for key, value in data.items():
             new_component, timestamp_map = TimeComponent.construct_from_dict(value, timestamp_map)
             setattr(new_cls, key, new_component)
@@ -117,14 +140,15 @@ class RTSDateTime(object):
         return new_cls
 
     @property
-    def _timestamp_map(self):
-        timestamp_map: dict[str, TimestampInterface] = {}
+    def _timestamp_map(self):  # -> dict[str, Any]:
+        timestamp_map: dict[str, Timestamp] = {}
         vars = self.__class__.__dict__.copy()
         vars.update(self.__dict__)
         for key, value in vars.items():
-            if isinstance(value, TimestampInterface):
+            if isinstance(value, Timestamp):
                 timestamp_map[key] = value
         return timestamp_map
+
 
     @property
     def timestamp_map(self):
@@ -132,7 +156,7 @@ class RTSDateTime(object):
 
     @property
     def units_map(self):
-        units_map: dict[str, RSTUnits] = {}
+        units_map: dict[str, RTSTimeUnits] = {}
         vars = self.__class__.__dict__.copy()
         vars.update(self.__dict__)
         for key, value in vars.items():
@@ -140,12 +164,27 @@ class RTSDateTime(object):
                 units_map[key] = value.__get__(self, self.__class__)
         return units_map
 
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, RTSDateTime):
+            raise ValueError("Can only compare RTSDateTime objects")
+        for this_ts, other_ts in zip(self.timestamp_map.values(), other.timestamp_map.values()):
+            if this_ts != other_ts:
+                return False
+        return True
+
+    def rst_timestamp(self):
+        timestamp_strs = []
+        for timestamp_name, timestamp in self.timestamp_map.items():
+            timestamp_strs.append(f"{timestamp_name}={timestamp}")
+
+        return ",".join(timestamp_strs)
+
     def __getitem__(self, key: str):
         return self.units_map[key]
 
 
 class TimeComponent[T: RTSTimeUnits]:
-    def __init__(self, units: type[T], timestamp: TimestampInterface, init: Literal[False] = False):
+    def __init__(self, units: type[T], timestamp: Timestamp, init: Literal[False] = False):
         self.init = init
         self.timestamp = timestamp
         self.units = units
@@ -161,7 +200,7 @@ class TimeComponent[T: RTSTimeUnits]:
 
     @classmethod
     def construct_from_dict(
-        cls: "type[TimeComponent[RTSTimeUnits]]", data: dict[str, Any], timestamp_map: dict[str, TimestampInterface]
+        cls: "type[TimeComponent[RTSTimeUnits]]", data: dict[str, Any], timestamp_map: dict[str, Timestamp]
     ):
         timestamp = timestamp_map.get(data["timestamp"])
         if not timestamp:
@@ -269,7 +308,10 @@ def rtsdatetime[T](cls: type[T]) -> type[T]:
 #             f"[{self.name}.HE]": str(self.hexa),
 #             f"[{self.name}.TA]": str(self.tap),
 #             f"[{self.name}.DE]": str(self.decitap).rjust(2, "0"),
-#             f"[{self.name}.BE]": str(self.beat).rjust(2, "0"),
+#             f"[{self.name}.BE]":class BwsCacheSecretLookupException(AnsibleLookupError):
+#     pass
+#
+#  str(self.beat).rjust(2, "0"),
 #             f"[{self.name}.SE]": str(self.seconds).rjust(2, "0"),
 #             f"[{self.name}.MI]": str(self.minute).rjust(2, "0"),
 #             f"[{self.name}.HO]": str(self.hour).rjust(2, "0"),

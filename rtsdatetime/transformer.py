@@ -1,10 +1,10 @@
 import datetime
-from rtsdatetime.model import Timestamp, RTSDateTime, TimestampInterface
-from typing import Callable
+from rtsdatetime.model import Timestamp, RTSDateTime, RTSTimeUnits
+from typing import Any, Callable
 from rtsdatetime.default_units import StandardUnits
 
 
-class TimestampTransformer(TimestampInterface):
+class TimestampTransformer(Timestamp):
     def __init__(self, base: Timestamp, transformer: Callable[[float], float] | None = None):
         self.base = base
         self.transformer_cb = transformer or self.transformer
@@ -12,12 +12,12 @@ class TimestampTransformer(TimestampInterface):
     def __set_name__(self, owner: type[RTSDateTime], name: str):
         self.name = name
 
-    def __get__(self, obj: RTSDateTime, objtype: type[RTSDateTime] | None = None) -> float:
+    def __get__(self, obj: "RTSDateTime | None", objtype: type[RTSDateTime] | None = None) -> float:
         if obj is None or not issubclass(objtype, RTSDateTime):
             raise AttributeError("TimestampTransformer can only be accessed through RTSDateTime objects")
         return self.transformer_cb(self.base.__get__(obj, objtype))
 
-    def __set__(self, obj: RTSDateTime, value: float):
+    def __set__(self, obj: "RTSDateTime", value: Any):
         raise AttributeError("TimestampTransformer is read-only")
 
     @staticmethod

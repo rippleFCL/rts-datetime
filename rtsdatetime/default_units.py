@@ -14,7 +14,7 @@ class RSTUnits(RTSTimeUnits):
     day: RTSUnit = RTSUnit(115200, 0)
     year: RTSUnit = RTSUnit(42077520, 0)
     quadrennial: RTSUnit = RTSUnit(168310080, 0)
-    seconds_ratio = 3/4
+    seconds_ratio = 4/3
     epoch = datetime.datetime(2005, 3, 16)
 
 
@@ -35,4 +35,4 @@ class StandardUnits(RTSTimeUnits):
     second: RTSUnit = RTSUnit(1, 60)
     seconds_ratio = 1
     epoch = datetime.datetime.fromtimestamp(0)
-     
+

@@ -5,16 +5,16 @@ from typing import Any, Self, dataclass_transform
 
 
 class GeneratedRSTUnit:
-    def __init__(self, timestamp: float, length: float, wrap: int = 0):
+    def __init__(self, timestamp: float, length: float, wrap: int):
         self.length = length
         self.timestamp = timestamp
         self.wrap = wrap
 
     def _absolute_unit(self, timestamp: float) -> int:
         if self.wrap:
-            unit = int(abs(timestamp) // self.length % self.wrap)
+            unit = int(timestamp // self.length % self.wrap)
         else:
-            unit = int(abs(timestamp) // self.length)
+            unit = int(timestamp // self.length)
         if timestamp < 0:
             return -unit
         return unit
@@ -25,15 +25,17 @@ class GeneratedRSTUnit:
 
     @property
     def visual_unit(self):
-        visual_timestamp = self.timestamp + 1 if self.timestamp < 0 else self.timestamp
-        negative_offset = 1 if self.wrap == 0 else 0
-        absolute_unit = self._absolute_unit(visual_timestamp)
+        absolute_unit = self._absolute_unit(self.timestamp)
         if absolute_unit < 0:
-            return self.wrap - absolute_unit - negative_offset
+            print(absolute_unit)
+            return  ((self.wrap-1) + absolute_unit)
         return absolute_unit
 
     def __repr__(self):
-        return str(self.absolute_unit)
+        return f"{self.__class__.__name__}({self.timestamp}, {self.length}, {self.wrap})"
+
+    def __str__(self):
+        return f"{self.visual_unit}"
 
 @dataclass_transform(kw_only_default=True)
 class RTSTimeUnits:
