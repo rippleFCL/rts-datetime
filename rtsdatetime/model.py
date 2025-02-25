@@ -101,6 +101,8 @@ class RTSDateTime(object):
 
     @classmethod
     def load_json(cls, json_string: str):
+        if cls is not RTSDateTime:
+            raise AttributeError("load_json can only be called on RTSDateTime directly")
         class DynRTSDateTime(cls):
             pass
         new_cls: type[Self] = DynRTSDateTime # type: ignore

@@ -35,7 +35,6 @@ class GeneratedRSTUnit:
     def __repr__(self):
         return str(self.absolute_unit)
 
-
 @dataclass_transform(kw_only_default=True)
 class RTSTimeUnits:
     timestamp: float = 0
@@ -44,16 +43,16 @@ class RTSTimeUnits:
 
     def __init_subclass__(cls: type["RTSTimeUnits"]) -> None:
         if cls.seconds_ratio is None:
-            raise AttributeError("RTSTimeUnits must have a seconds_ratio attribute")
+            raise AttributeError(f"{cls.__name__} must have a seconds_ratio attribute")
 
         def __init__(self: "RTSTimeUnits", **kwargs):
             for unit_name, unit_value in kwargs.items():
                 if getattr(self, unit_name, None) is None:
-                    raise TypeError(f"RTSTimeUnits has no keyword argument {unit_name}")
+                    raise TypeError(f"{self.__class__.__name__} has no keyword argument {unit_name}")
                 setattr(self, unit_name, unit_value)
 
         def __str__(self: "RTSTimeUnits"):
-            components = [f"{unit_name}={unit_value.visual_unit}" for unit_name, unit_value in self.units.items()]
+            components  = [f"{unit_name}={unit_value.visual_unit}" for unit_name, unit_value in self.units.items()]
             return f"{self.__class__.__name__}({', '.join(components)})"
 
         def __repr__(self: "RTSTimeUnits"):
@@ -65,9 +64,9 @@ class RTSTimeUnits:
 
     @classmethod
     def from_seconds(cls, seconds: float):
-        new_cls: type[RTSTimeUnits] = cls.__new__(cls)  # type: ignore
+        new_cls: type[RTSTimeUnits] = cls.__new__(cls) # type: ignore
         if new_cls.seconds_ratio is None:
-            raise AttributeError("RTSTimeUnits must have a seconds_ratio attribute")
+            raise AttributeError(f"{cls.__name__} must have a seconds_ratio attribute")
         new_cls.timestamp = seconds * new_cls.seconds_ratio
         return new_cls
 
@@ -82,7 +81,6 @@ class RTSTimeUnits:
     @classmethod
     def from_timestamp(cls, timestamp: float):
         new_cls = cls.__new__(cls)
-        new_cls.__post_init__()
         new_cls.timestamp = timestamp
         return new_cls
 
@@ -98,16 +96,17 @@ class RTSTimeUnits:
 
     @classmethod
     def construct_from_dict(cls: type[Self], data: dict[str, Any]) -> type[Self]:
+        if cls is not RTSTimeUnits:
+            raise AttributeError("construct_from_dict can only be called on RTSTimeUnits directly")
         class DynRTSTimeUnits(cls):
             epoch = datetime.datetime.fromtimestamp(data["epoch"])
             seconds_ratio = data["seconds_ratio"]
             pass
 
-        new_cls: type[Self] = DynRTSTimeUnits  # type: ignore
+        new_cls: type[Self] = DynRTSTimeUnits # type: ignore
         new_cls.__name__ = data["name"]
         for unit_name, unit_data in data["units"].items():
-            if getattr(new_cls, unit_name, None) is None:
-                setattr(new_cls, unit_name, RTSUnit.from_dict(unit_data))
+            setattr(new_cls, unit_name, RTSUnit.from_dict(unit_data))
         return new_cls
 
     def __getitem__(self, name: str) -> Any:
@@ -167,3 +166,4 @@ class RTSUnit:
 
     def to_dict(self):
         return {"length": self.length, "wrap": self.wrap}
+
